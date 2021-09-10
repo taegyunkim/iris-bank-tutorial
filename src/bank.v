@@ -61,36 +61,6 @@ Context `{!lockG Σ}.
 Context `{!ghost_varG Σ Z}.
 Let N := nroot.@"bank".
 
-
-(*
-Lemma ghost_var_alloc a :
-    ⊢ |==> ∃ γ, own γ (●E a) ∗ own γ (◯E a).
-Proof.
-    iMod (own_alloc (●E a ⋅ ◯E a)) as (γ) "[H1 H2]".
-    { apply excl_auth_valid. }
-    iModIntro. iExists γ. iFrame.
-Qed.
-
-Lemma ghost_var_agree γ a1 a2 :
-    own γ (●E a1) -∗ own γ (◯E a2) -∗ ⌜ a1 = a2 ⌝.
-Proof using All.
-    iIntros "Hy1 Hy2"
-    iDestruct (own_valid_2 with "Hy1 Hy2") as "H".
-    iDestruct "H" as %<-%excl_auth_agree%leibniz_equiv.
-    done.
-Qed.
-
-Lemma ghost_var_update {γ} (a1' a1 a2 : A) :
-    own γ (●E a1) -∗ own γ (◯E a2) -∗
-    |==> own γ (●E a1') ∗ own γ (◯E a1').
-Proof.
-    iIntros "Hy● Hy◯".
-    iMod (own_update_2 _ _ _ (●E a1' ⋅ ◯E a1') with "Hy● Hy◯") as "[$$]".
-    { apply excl_auth_update. }
-    done.
-Qed.
-*)
-
 (** Verifying concurrent software generally require the use of _ghost_state_.
 variables that are introduced into the program only for the sake of the proof.
 In some systems (like Dafny or VeriFast), ghost variables actually show up in
