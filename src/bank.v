@@ -191,14 +191,14 @@ Proof.
     variable change in [ghost_var_alloc] and at the same time destruct it with
     [as (γ1) "(Hown1&Hγ1)"], using [γ1] for the ghost name and [Hown1] and
     [Hγ1] for the two halves, respectively. *)
-    iMod (ghost_var_alloc 0) as (γ1) "(Hown1&Hy1)".
+    iMod (ghost_var_alloc 0) as (γ1) "(Hown1&Hγ1)".
     wp_pures.
     (* Now we can initialize the lock invariant for the first acount, which
     will own the auth ["Hγ1"] created above. *)
     wp_apply (newlock_spec (account_inv γ1 a_ref) with "[Ha Hγ1]").
     { iExists _; iFrame. }
     iIntros (lk_a γlk1) "Hlk1".
-    iMod (ghost_var_alloc 0) as (γ2) "(Hown2&Hy2)".
+    iMod (ghost_var_alloc 0) as (γ2) "(Hown2&Hγ2)".
     wp_pures.
     wp_apply (newlock_spec (account_inv γ2 b_ref) with "[Hb Hγ2]").
     { iExists _; iFrame. }
@@ -213,8 +213,8 @@ Proof.
     iSplit; first eauto.
     simpl.
     iSplitL "Hlk1".
-    - iExists _; eautho with iFrame.
-    - iExists _; eautho with iFrame.
+    - iExists _; eauto with iFrame.
+    - iExists _; eauto with iFrame.
 Qed.
 
 
