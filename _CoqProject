@@ -1,0 +1,4 @@
+-Q src Bank
+-arg -w -arg -notation-overridden,-redundant-canonical-projection,-convert_concl_no_check,-undeclared-scope
+
+src/bank.v
