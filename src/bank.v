@@ -15,12 +15,12 @@ Set Printing Projections.
 Open Scope Z_scope.
 
 Definition new_bank: val :=
-    λ: <>,
-    let: "a_bal" := ref #0 in
-    let: "b_bal" := ref #0 in
-    let: "lk_a" := newlock #() in
-    let: "lk_b" := newlock #() in
-    (("lk_a", "a_bal"), ("lk_b", "b_bal")).
+  λ: <>,
+     let: "a_bal" := ref #0 in
+     let: "b_bal" := ref #0 in
+     let: "lk_a" := newlock #() in
+     let: "lk_b" := newlock #() in
+     (("lk_a", "a_bal"), ("lk_b", "b_bal")).
 
 Definition transfer: val :=
     λ: "bank" "amt",
@@ -28,8 +28,6 @@ Definition transfer: val :=
     let: "b" := Snd "bank" in
     acquire (Fst "a");;
     acquire (Fst "b");;
-    let: "a_bal" := !(Snd "a") in
-    let: "b_bal" := !(Snd "b") in
     Snd "a" <- !(Snd "a") - "amt";;
     Snd "b" <- !(Snd "b") + "amt";;
     release (Fst "b");;
@@ -44,7 +42,7 @@ Definition check_consistency: val :=
     acquire (Fst "b");;
     let: "a_bal" := !(Snd "a") in
     let: "b_bal" := !(Snd "b") in
-    let: "ok" := "a_bal" + "b_ba;" = #0 in
+    let: "ok" := "a_bal" + "b_bal" = #0 in
     release (Fst "b");;
     release (Fst "a");;
     "ok".
@@ -114,12 +112,12 @@ invariant we'll claim half ownership, while the other half will be in a
 system-wide invariant; this lets us reference the variable's value from both
 places and also assert that the lock is needed to change this balance. *)
 Definition account_inv γ bal_ref : iProp Σ :=
-    ∃ (bal: Z), bal_ref ↦ #bal ∗ ghost_var γ (1/2) bal.
+  ∃ (bal: Z), bal_ref ↦ #bal ∗ ghost_var γ (1/2) bal.
 
 (** an account is a pair of a lock and an account protected by the lock *)
 Definition is_account (acct: val) γ : iProp Σ :=
-    ∃ (bal_ref: loc) lk,
-        ⌜acct = (lk, #bal_ref)%V⌝ ∗
+  ∃ (bal_ref: loc) lk,
+    ⌜acct = (lk, #bal_ref)%V⌝ ∗
         (* The important part of [is_lock] is the lock invariant, expressed as
         an arbitrary Iris proposition [iProp Σ]. The idea of lock invariants is
         that first we associate a lock invariant [P] with the lock (we're doing
@@ -151,7 +149,7 @@ Definition bank_inv (γ: gname * gname) : iProp Σ :=
 
 (** finally [is_bank] ties everything together, the accounts and invariant *)
 Definition is_bank (b: val): iProp Σ :=
-    ∃ (acct1 acct2:val) (γ: gname*gname),
+    ∃ (acct1 acct2: val) (γ: gname*gname),
     ⌜b = (acct1, acct2)%V⌝ ∗
     is_account acct1 γ.1 ∗
     is_account acct2 γ.2 ∗
@@ -204,6 +202,9 @@ Proof.
     { iExists _; iFrame. }
     iIntros (lk_b γlk2) "Hlk2".
     wp_pures.
+    (* At this point we'll allocate the [bank_inv] invariant. The invairant says
+    the logical balances add up to 0, which we'll prove that it initally holds
+    here. *)
     iMod (inv_alloc N _ (bank_inv (γ1, γ2)) with "[Hown1 Hown2]") as "Hinv".
     { iNext. iExists _, _; iFrame.
       iPureIntro; auto. }
