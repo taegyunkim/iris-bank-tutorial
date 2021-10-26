@@ -9,9 +9,15 @@ From iris.heap_lang Require Import proofmode notation adequacy.
 From iris.heap_lang.lib Require Import lock spin_lock.
 
 (* set some Coq options for basic sanity *)
+(* https://coq.inria.fr/distrib/V8.13.0/refman/proofs/writing-proofs/proof-mode.html#proof-using-options
+*)
 Set Default Proof Using "Type".
+(* Using Default Goal Selector with the ! selector forces tactic scripts to keep
+focus to exactly one goal (e.g. using bullets) or use explicit goal selectors.*)
 Set Default Goal Selector "!".
 Set Printing Projections.
+(* interpret arithmetic operations over Z, integer scope.
+There is also something like nat_scope, probably both from Coq. *)
 Open Scope Z_scope.
 
 Definition new_bank: val :=
@@ -58,6 +64,7 @@ Section heap.
 (* mostly standard boilerplate *)
 Context `{!heapGS Σ}.
 Context `{!lockG Σ}.
+(* Z refers to the type of integers *)
 Context `{!ghost_varG Σ Z}.
 Let N := nroot.@"bank".
 
@@ -187,6 +194,16 @@ Proof.
     - iExists _; eauto with iFrame.
     - iExists _; eauto with iFrame.
 Qed.
+(*
+Theorem wp_transfer b (amt: Z) :
+    {{{ is_bank b}}}
+    transfer b #amt
+    {{{RET #(); True}}}.
+Proof.
+    iIntros (Φ) "#Hb HΦ".
+    iDestruct "Hb" as (acct1 acct2 γ ->) "(Hacct1&Hacct2&Hinv)". *)
+
+
 
 
 End heap.
