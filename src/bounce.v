@@ -60,17 +60,17 @@ Definition phase_transition: val :=
     λ: "bounce",
     let: "phase" := Fst "bounce" in
     match !"phase" with
-        #1 => "phase" <- #2
-      | #2 => "phase" <- #3
-      | _ => "phase" <- #1
+        #1 => Fst "bounce" <- #2
+      | #2 => Fst "bounce" <- #3
+      | _ => Fst "bounce" <- #1
     end.
 
 Definition phase_transition_two : val :=
-    λ: "bounce_unit",
-    let: "phase" := "bounce_unit" in
+    λ: "bounce",
+    let: "phase" := "bounce" in
     match !"phase" with
-      #3 => "phase" <- #1
-      | _ => "phase" <- !"phase" + #1
+      #3 => Fst "bounce" <- #1
+      | _ => Fst "bounce" <- !"phase" + #1
     end.
 
 Definition check_phase: val :=
@@ -79,12 +79,36 @@ Definition check_phase: val :=
     let: "ok":= !"bounce_phase" = "phase" in
     "ok".
 
-Definition phase_transit: expr :=
-    λ: <>,
-    let: "bounce_unit" := new_bounce_unit #() in
-    phase_transition "bounce_unit";;
-    check_phase "bounce_unit" #2.
 
+Section proof.
+
+Context `{!heapGS Σ}.
+Context `{!spawnG Σ}.
+Context `{!ghost_varG Σ Z}.
+Notation iProp := (iProp Σ).
+Context (N : namespace).
+
+
+Definition phase_inv γ phase_ref : iProp :=
+    ∃ (phase: Z), phase_ref ↦ #phase ∗ ghost_var γ (1/2) phase ∗
+    ⌜(phase = 1)%Z ∨ (phase = 2)%Z ∨ (phase = 3)%Z⌝.
+
+
+Definition is_bounce_unit (b: val) : iProp :=
+    ∃ (phase_ref: loc) (γ: gname),
+        ⌜b = (#phase_ref, #2)%V⌝ ∗ phase_inv γ phase_ref.
+
+Theorem wp_new_bounce_unit:
+    {{{True}}}
+        new_bounce_unit #()
+    {{{b, RET b; is_bounce_unit b}}}.
+Proof.
+    iIntros (Φ) "_ HΦ".
+    wp_rec.
+
+    (* TODO *)
+Admitted.
+End proof.
 
 (* When do you need to use Iris over Coq?
 For this just Coq would not be enough.
