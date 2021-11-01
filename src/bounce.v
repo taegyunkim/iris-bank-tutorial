@@ -29,6 +29,27 @@ Definition new_bounce_unit: val :=
     ("phase", "some_other").
 
 (*
+    ("phase", ("second", "third"))
+
+    struct like datatype in coq/iris?
+
+    Define constructor taking n number of arguments
+    and define accessors for each of those arguments
+
+    Definition new_bounce_unit: val :=
+    λ: "f1" "f2" "f3" ... "fn"
+    ("f1", "f2", "f3", ..., "fn")
+    ...
+    but still you have to access "f2" as Fst Snd "bounce_unit"
+    "f3" as Fst Snd Snd "bounce_unit"
+
+    Definition get_f1: val :=
+    λ: "bounce_unit",
+        Fst "bounce_unit"
+
+*)
+
+(*
 Definition phase_transition : val :=
     λ: "bounce_unit",
     let: "phase" := !(Fst "bounce_unit") in
@@ -39,9 +60,17 @@ Definition phase_transition: val :=
     λ: "bounce",
     let: "phase" := Fst "bounce" in
     match !"phase" with
-        #1 => Fst "bounce" <- #2
-      | #2 => Fst "bounce" <- #3
-      | _ => Fst "bounce" <- #1
+        #1 => "phase" <- #2
+      | #2 => "phase" <- #3
+      | _ => "phase" <- #1
+    end.
+
+Definition phase_transition_two : val :=
+    λ: "bounce_unit",
+    let: "phase" := "bounce_unit" in
+    match !"phase" with
+      #3 => "phase" <- #1
+      | _ => "phase" <- !"phase" + #1
     end.
 
 Definition check_phase: val :=
@@ -55,6 +84,11 @@ Definition phase_transit: expr :=
     let: "bounce_unit" := new_bounce_unit #() in
     phase_transition "bounce_unit";;
     check_phase "bounce_unit" #2.
+
+
+(* When do you need to use Iris over Coq?
+For this just Coq would not be enough.
+*)
 
 
 (* Definition phase_transit : val :=
