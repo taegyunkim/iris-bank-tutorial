@@ -169,38 +169,3 @@ Proof.
 Qed.
 
 End proof.
-
-
-(*
-Definition phase_transit_inv (p: loc) (n: Z) : iProp :=
-    (∃ (m: Z), (p ↦ #m))%I.
-
-Lemma phase_transit_spec_3 (p: loc)  (n: Z) :
-    {{{ p ↦ #3 }}}
-        phase_transit p
-    {{{ RET #1 ; True }}}.
-Proof using Type* N.
-    iIntros (Φ) "Hpt HΦ".
-    unfold phase_transit.
-
-
-
-
-Qed.
-
-Definition phase_transit_inv (p : loc) (n : Z) : iProp :=
-    (∃ (m :Z), ⌜(1≤ m)%Z /\ (m ≤3)%Z⌝ ∗ (p ↦ #m))%I.
-
-
-Lemma phase_transit_spec (p: loc) (n: Z) :
-    {{{ ⌜(1≤ n)%Z ∧ (n≤ 3)%Z⌝ ∗ p ↦ #n }}} phase_transit p;; !#p {{{m, RET #m; ⌜(1≤ m)%Z /\ (m ≤3)%Z⌝ ∗ p ↦ #m}}}.
-
-Proof using Type* N.
-    iIntros (Φ) "Hpt HΦ".
-    iMod (inv_alloc N _ (phase_transit_inv p n) with "[Hpt]") as "#HInv".
-
-    - iNext. rewrite /phase_transit_inv. iExists n. auto.
-    -
-    wp_bind (phase_transit p)%E.
-
-    wp_bind () *)
