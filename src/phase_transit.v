@@ -134,7 +134,7 @@ Proof using Type* N.
     iMod (inv_alloc N _ _ with "Hpt") as "HInv".
 
     destruct phase_transit. *)
-
+(*
 Definition wp: expr :=
     λ: "1", let: "n" := !"1" in "1" <- "n" + #2.
 
@@ -150,7 +150,7 @@ Proof.
     iModIntro.
     iApply "HΦ".
     iFrame.
-Qed.
+Qed. *)
 
 Lemma phase_transit_3 (l:loc):
 {{{l ↦ #3 }}}
