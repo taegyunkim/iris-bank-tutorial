@@ -87,6 +87,11 @@ Definition phase_transit (p: loc) : expr :=
     end.
  *)
 
+(* Inductive Phase :=
+    | First
+    | Second
+    | Third. *)
+
 Definition phase_transit: expr :=
     λ: "l",
     let: "phase" := !"l" in
@@ -94,7 +99,16 @@ Definition phase_transit: expr :=
         #1 => "l" <- #2
       | #2 => "l" <- #3
       | _ => "l" <- #1
+      (* | #3 => "l" <- #1
+      (* Throw an error in this case,
+        or probably try with Inductive. *)
+      | _ => #-1 *)
     end.
+
+(*
+process_msg :=
+    λ: "bounce" "msg",
+*)
 
 Section proof.
 (* In order to do the proof we need to assume certain things about the
