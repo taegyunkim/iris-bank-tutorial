@@ -23,6 +23,70 @@ There is also something like nat_scope, probably both from Coq. *)
 Open Scope Z_scope.
 
 Definition new_bounce_unit: val :=
+  λ: "id",
+  let: "id_ref" := ref "id" in
+  let: "phase" := ref #1 in
+  let: "signed" := ref #2 in
+  let: "num_precommits" := ref #3 in
+  let: "num_noncommits" := ref #4 in
+  ("id_ref", "phase", "signed", "num_precommits", "num_noncommits").
+
+Definition get_id: val :=
+    λ: "bounce_unit",
+    !(Fst "bounce_unit").
+
+Definition get_phase: val :=
+    λ: "bounce_unit",
+    !(Fst(Snd "bounce_unit")).
+
+Definition get_signed: val :=
+    λ: "bounce_unit",
+    !(Fst(Snd(Snd "bounce_unit"))).
+
+Definition get_num_precommits: val :=
+    λ: "bounce_unit",
+    !(Fst(Snd(Snd(Snd "bounce_unit")))).
+
+Definition get_num_noncommits: val :=
+    λ: "bounce_unit",
+    !(Snd(Snd(Snd(Snd "bounce_unit")))).
+
+Section check.
+(* mostly standard boilerplate *)
+Context `{!heapGS Σ}.
+Context `{!lockG Σ}.
+(* Z refers to the type of integers *)
+Context `{!ghost_varG Σ Z}.
+Let N := nroot.@"check".
+
+Definition bounce_unit_inv (b: val) :iProp Σ :=
+  ∃ (id_ref phase_ref signed_ref num_precommits_ref num_noncommits_ref: loc),
+      ⌜b = (
+        #id_ref, #phase_ref, #signed_ref,
+        #num_precommits_ref, #num_noncommits_ref)%V⌝.
+
+Lemma check_new_bounce_unit:
+    {{{ True }}}
+        new_bounce_unit #1
+    {{{b, RET b; bounce_unit_inv b }}}.
+Proof.
+  iIntros (Φ) "_ HΦ".
+  wp_rec.
+  wp_alloc id_ref as "Hid".
+  wp_alloc phase_ref as "Hphase".
+  wp_alloc signed_ref as "Hsigned".
+  wp_alloc num_precommits_ref as "Hnum_precommits".
+  wp_alloc num_noncommits_ref as "Hnum_noncommits".
+  wp_let.
+  wp_pures.
+  iModIntro.
+  iApply "HΦ".
+  iExists _, _, _, _, _; by iFrame.
+Qed.
+End check.
+
+
+Definition new_bounce_unit: val :=
     λ: <>,
     let: "phase" := ref #1 in
     let: "some_other" := ref #2 in
@@ -79,6 +143,31 @@ Definition check_phase: val :=
     let: "ok":= !"bounce_phase" = "phase" in
     "ok".
 
+(* Define messages *)
+Inductive message: Type :=
+    | Precommit
+    | Noncommit
+
+
+(* This function returns a list or array of bounce units, which we call a
+flock *)
+Definition new_flock: val:=
+    λ: <>,
+    #1.
+
+(* The shared last broadcast bus.*)
+Definition new_bus: val:=
+    λ: <>,
+    #2.
+
+(* This corresponds to what bounce unit i does to update its state*)
+Definition read_bus_update_state: val :=
+    λ: "bus" "flock" "i",
+    #3.
+
+Definition update_bus: val :=
+    λ: "bus" "i",
+    #4.
 
 Section proof.
 
