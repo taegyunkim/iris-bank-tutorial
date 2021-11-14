@@ -14,6 +14,8 @@ From iris.base_logic.lib Require Export invariants.
     language. *)
 From iris.proofmode Require Import proofmode.
 From iris.heap_lang Require Import proofmode.
+From iris.heap_lang Require Export lang.
+
 
 (* Instantiation of Iris with the particular language. The notation file
     contains many shorthand notations for the programming language constructs, and
@@ -36,62 +38,31 @@ From iris.prelude Require Import options.
     The # in the notation is used to embed literals, e.g., variables, numbers, as
     values of the programmin language. *)
 
-(*
+From RecordUpdate Require Import RecordSet.
+
 Inductive Phase :=
-    | First
-    | Second
-    | Third.
+  | First: Phase
+  | Second: Phase
+  | Third: Phase.
 
 Definition phase_incr (p : Phase) : Phase :=
-    match p with
-    | First => Second
-    | Second => Third
-    | Third => First
-    end.
+  match p with
+  | First => Second
+  | Second => Third
+  | Third => First
+  end.
 
-Definition phase_transit (p: loc) :=
-    match !#p with
-        | #First => p <- Second
-        | #Second => p <- Third
-        | #Third => p <- First
-    end.
+Lemma phase_incr_third :  phase_incr Third = First.
+    unfold phase_incr.
+    reflexivity.
+Qed.
 
+(* There is a way to define and update record data type *)
+Record BounceUnit := mkBounceUnit { Id: nat; P: Phase }.
+Instance etaBounceUnit : Settable _ := settable! mkBounceUnit <Id; P>.
+Definition setPhase p x := set P p x.
 
-
-Definition phase_eq (p: Phase) (q: Phase) : Prop := *)
-    (* q = p. *)
-    (* match p with
-    | First => match q with
-                | First => true
-                | _ => false
-                end
-    | Second => match q with
-                 | Second => true
-                 | _ => false
-                 end
-    | First First => True
-    | Second Second => True
-    | Third Third => True
-    | _ _ => False
-    end. *)
-
-
-(*
-(* We define the heap as a list of pairs (variable, value). *)
-
-Definition phase_transit (p: loc) : expr :=
-    match !#p with
-        S => #p <- SS
-      | SS => #p <- SSS
-      | #_ => #p <- S
-    end.
- *)
-
-(* Inductive Phase :=
-    | First
-    | Second
-    | Third. *)
-
+(* Example using location and values *)
 Definition phase_transit: expr :=
     λ: "l",
     let: "phase" := !"l" in
@@ -104,11 +75,6 @@ Definition phase_transit: expr :=
         or probably try with Inductive. *)
       | _ => #-1 *)
     end.
-
-(*
-process_msg :=
-    λ: "bounce" "msg",
-*)
 
 Section proof.
 (* In order to do the proof we need to assume certain things about the
@@ -131,40 +97,6 @@ Notation iProp := (iProp Σ).
     location. This invariant will be allocated in this namespace which is a
     parameter of the whole development. *)
 Context (N : namespace).
-(*
-Definition phase_incr_inv (p: Phase) :iProp :=
-    (∃ (q: Phase), ⌜(phase_incr p) = q⌝)%I.
-
-Lemma phase_incr_spec (p: Phase) :
-    {{{ True }}} phase_incr First {{{ RET Second; True}}}. *)
-
-(*
-Lemma check_phase_transit_3 (p: loc) :
-    {{{ p ↦ #3 }}}
-        phase_transit p
-    {{{ RET #1 ; True }}}.
-Proof using Type* N.
-    iIntros (Φ) "Hpt HΦ".
-    iMod (inv_alloc N _ _ with "Hpt") as "HInv".
-
-    destruct phase_transit. *)
-(*
-Definition wp: expr :=
-    λ: "1", let: "n" := !"1" in "1" <- "n" + #2.
-
-Lemma wp_example (l:loc):
-    {{{l ↦ #1 }}}
-        wp #l
-    {{{ RET #() ;  l ↦ #3}}}.
-Proof.
-    iIntros (Φ) "Hpt HΦ".
-    wp_pures.
-    wp_load.
-    wp_store.
-    iModIntro.
-    iApply "HΦ".
-    iFrame.
-Qed. *)
 
 Lemma phase_transit_3 (l:loc):
 {{{l ↦ #3 }}}
