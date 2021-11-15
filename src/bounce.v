@@ -64,9 +64,9 @@ Context `{!heapGS Σ, lockG Σ}.
 
 Local Notation iProp := (iProp Σ).
 
-Definition is_bounce_unit (b: val) (id: val): iProp :=
-  (∃ (id_ref phase_ref: loc), ⌜b = (#id_ref, #phase_ref)%V⌝ ∗ id_ref ↦ id)%I.
-
+Definition is_bounce_unit (b: val) (id: val) : iProp :=
+  (∃ (id_ref phase_ref: loc) p, ⌜b = (#id_ref, #phase_ref)%V⌝ ∗ id_ref ↦ id ∗
+    phase_ref ↦ p)%I.
 
 Theorem wp_new_bounce_unit (id: val):
   {{{ True }}}
@@ -80,7 +80,7 @@ Proof.
   wp_pures.
   iModIntro.
   iApply "HΦ".
-  iExists _, _; by iFrame.
+  iExists _, _, _; by iFrame.
 Qed.
 
 Theorem wp_get_id (b: val) (id: val):
@@ -89,7 +89,7 @@ Theorem wp_get_id (b: val) (id: val):
   {{{id, RET id; True }}}.
 Proof.
   iIntros (Φ) "Hb HΦ".
-  iDestruct "Hb" as (id_ref phase_ref) "[% Hi]"; subst.
+  iDestruct "Hb" as (id_ref phase_ref p) "[% [Hi Hp]]"; subst.
   wp_rec.
   wp_pures.
   wp_load.
@@ -104,13 +104,30 @@ Theorem wp_set_id (b: val) (id: val) (id': val):
     set_id b id'
   {{{RET #(); is_bounce_unit b id'}}}.
   iIntros (Φ) "Hb HΦ".
-  iDestruct "Hb" as (id_ref phase_ref) "[% Hi]"; subst.
+  iDestruct "Hb" as (id_ref phase_ref p) "[% [Hi Hp]]"; subst.
   wp_rec.
   wp_pures.
   wp_store.
   iApply "HΦ".
   iModIntro.
-  iExists _, _; by iFrame.
+  iExists _, _, _; by iFrame.
+Qed.
+
+Theorem wp_get_phase (b: val) (id: val):
+  {{{ is_bounce_unit b id  }}}
+    get_phase b
+  {{{p, RET p; True}}}.
+Proof.
+  iIntros (Φ) "Hb HΦ".
+  iDestruct "Hb" as (id_ref phase_ref p) "[% [Hi Hp]]"; subst.
+  wp_rec.
+  wp_pures.
+  wp_load.
+  wp_let.
+  iModIntro.
+  iApply "HΦ".
+  iPureIntro.
+  reflexivity.
 Qed.
 
 
