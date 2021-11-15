@@ -6,9 +6,10 @@ From iris.base_logic Require Import lib.ghost_var.
 (* This code is written in HeapLang, a simple ML-like language shipped with
 Iris. *)
 From iris.heap_lang Require Import proofmode notation adequacy assert.
-From iris.heap_lang.lib Require Import lock spin_lock.
+From iris.heap_lang.lib Require Import lock spin_lock par.
+From iris.algebra.lib Require Import excl_auth.
+From iris.base_logic.lib Require Import invariants.
 
-Require Import Bool.
 
 (* set some Coq options for basic sanity *)
 (* https://coq.inria.fr/distrib/V8.13.0/refman/proofs/writing-proofs/proof-mode.html#proof-using-options
@@ -16,11 +17,9 @@ Require Import Bool.
 Set Default Proof Using "All".
 (* Using Default Goal Selector with the ! selector forces tactic scripts to keep
 focus to exactly one goal (e.g. using bullets) or use explicit goal selectors.*)
-Set Default Goal Selector "!".
-Set Printing Projections.
 (* interpret arithmetic operations over Z, integer scope.
 There is also something like nat_scope, probably both from Coq. *)
-Open Scope Z_scope.
+Open Scope Z.
 
 
 Section bounce_code.
@@ -47,44 +46,32 @@ Section bounce_code.
     let: "phase" := !(Snd "bounce_unit") in
     "phase".
 
-  Definition phase_transit: val :=
-    λ: "bounce_unit",
-    let: "phase_ref" := !(Snd "bounce_unit") in
-    match !"phase_ref" with
-    | #1 => "phase_ref" <- #2
-    | #2 => "phase_ref" <- #3
-    | #3 => "phase_ref" <- #1
-    | _ => assert: #false (* don't handle all other cases. *)
-    end.
+  Definition phase_transit (b: val) : expr :=
+    let: "phase_ref" := Snd b in
+    if: !"phase_ref" = #1 then "phase_ref" <- #2 else
+    if: !"phase_ref" = #2 then "phase_ref" <- #3 else
+    if: !"phase_ref" = #3 then "phase_ref" <- #1 else assert #false.
 
 End bounce_code.
 
 
 Section bounce_spec.
 (* mostly standard boilerplate *)
-Context `{!heapGS Σ}.
+Context `{!heapGS Σ, !spawnG Σ}.
 Let N := nroot.@"bounce".
 
 Local Notation iProp := (iProp Σ).
 
-Definition bounce_inv (id_ref phase_ref: loc) : iProp :=
-  (∃ (id phase: val),
-    id_ref ↦ id ∗
-    phase_ref ↦ phase)%I.
-
-Definition is_bounce_unit (b: val): iProp :=
+Definition is_bounce_unit (b: val) (id phase: val): iProp :=
   (∃ (id_ref phase_ref: loc),
     ⌜b = (#id_ref, #phase_ref)%V⌝ ∗
-    inv N (bounce_inv id_ref phase_ref))%I.
-
-Instance is_bounce_unit_persistent b: Persistent (is_bounce_unit b).
-Proof. apply _. (* this proof is actually automatic *) Qed.
-
+    id_ref ↦ id ∗
+    phase_ref ↦ phase)%I.
 
 Theorem wp_new_bounce_unit (id: val):
   {{{ True }}}
   new_bounce_unit id
-  {{{b, RET b; is_bounce_unit b}}}.
+  {{{b, RET b; is_bounce_unit b id #1}}}.
 Proof.
   iIntros (Φ) "_ HΦ".
   wp_lam.
@@ -93,50 +80,50 @@ Proof.
   wp_let.
   wp_pures.
   iApply "HΦ".
-  iMod (inv_alloc N _ (bounce_inv id_ref phase_ref) with "[Hid Hphase]") as "Hinv".
-  { iNext. iExists _, _; by iFrame. }
   iModIntro.
-  iExists _, _; iFrame.
-  eauto.
+  iExists _, _; by iFrame.
 Qed.
 
-Theorem wp_get_id (b: val) (id: val):
-  {{{ is_bounce_unit b id }}}
+Theorem wp_get_id (b: val) (id phase: val):
+  {{{ is_bounce_unit b id phase}}}
     get_id b
-  {{{id, RET id; True }}}.
+  {{{ RET id; True }}}.
 Proof.
-  iIntros (Φ) "Hb HΦ".
-  iDestruct "Hb" as (id_ref phase_ref p) "[% [Hi Hp]]"; subst.
-  wp_rec.
+  iIntros (Φ) "HInv HΦ".
+  iDestruct "HInv" as (id_ref phase_ref) "[% [Hid Hphase]]"; subst.
+  wp_lam.
   wp_pures.
   wp_load.
-  wp_pures.
+  wp_let.
   iModIntro.
   iApply "HΦ".
   auto.
 Qed.
 
-Theorem wp_set_id (b: val) (id: val) (id': val):
-  {{{ is_bounce_unit b id }}}
+Theorem wp_set_id (b: val) (id phase id' :val):
+  {{{ is_bounce_unit b id phase }}}
     set_id b id'
-  {{{RET #(); is_bounce_unit b id'}}}.
+  {{{RET #(); is_bounce_unit b id' phase}}}.
   iIntros (Φ) "Hb HΦ".
-  iDestruct "Hb" as (id_ref phase_ref p) "[% [Hi Hp]]"; subst.
+  iDestruct "Hb" as (id_ref phase_ref) "[% [Hi Hp]]"; subst.
   wp_rec.
   wp_pures.
   wp_store.
   iApply "HΦ".
   iModIntro.
-  iExists _, _, _; by iFrame.
+  iExists id_ref, phase_ref.
+  iSplit.
+  - by iFrame.
+  - by iFrame.
 Qed.
 
-Theorem wp_get_phase (b: val) (id: val):
-  {{{ is_bounce_unit b id  }}}
+Theorem wp_get_phase (b: val) (id phase: val):
+  {{{ is_bounce_unit b id phase}}}
     get_phase b
-  {{{p, RET p; True}}}.
+  {{{RET phase; True}}}.
 Proof.
   iIntros (Φ) "Hb HΦ".
-  iDestruct "Hb" as (id_ref phase_ref p) "[% [Hi Hp]]"; subst.
+  iDestruct "Hb" as (id_ref phase_ref) "[% [Hi Hp]]"; subst.
   wp_rec.
   wp_pures.
   wp_load.
@@ -147,25 +134,74 @@ Proof.
   reflexivity.
 Qed.
 
-Definition demo_phase_transit: val :=
-  λ: <>,
-  let: "b" := new_bounce_unit #0 in
-  let: "p" := get_phase "b" in
-  phase_transit "b";;
-  let: "p'" := get_phase "b" in
-  let: "ok" := "p" + #1 = "p'" in
-  "ok".
-
-Theorem wp_demo_phase_transit:
-  {{{ True }}}
-  demo_phase_transit #()
-  {{{RET #true; True}}}.
+Theorem wp_phase_transit_1 (b: val) (id : val):
+  {{{ is_bounce_unit b id #1 }}}
+    phase_transit b
+  {{{ RET #(); is_bounce_unit b id #2 }}}.
 Proof.
-  iIntros (Φ) "_ HΦ".
-  wp_rec.
-  wp_apply wp_new_bounce_unit; first eauto.
-  iIntros (b) "#Hb".
+  iIntros (Φ) "Hb HΦ".
+  unfold is_bounce_unit.
+  iDestruct "Hb" as (id_ref phase_ref) "[% [Hi Hp]]"; subst.
+  unfold phase_transit.
   wp_pures.
+  wp_load.
+  wp_pures.
+  wp_store.
+  iApply "HΦ".
+  iModIntro.
+  iExists id_ref, phase_ref.
+  iSplit.
+  - by iFrame.
+  - by iFrame.
+Qed.
+
+Theorem wp_phase_transit_2 (b: val) (id : val):
+  {{{ is_bounce_unit b id #2 }}}
+    phase_transit b
+  {{{ RET #(); is_bounce_unit b id #3 }}}.
+Proof.
+  iIntros (Φ) "Hb HΦ".
+  unfold is_bounce_unit.
+  iDestruct "Hb" as (id_ref phase_ref) "[% [Hi Hp]]"; subst.
+  unfold phase_transit.
+  wp_pures.
+  wp_load.
+  wp_pures.
+  wp_load.
+  wp_pures.
+  wp_store.
+  iApply "HΦ".
+  iModIntro.
+  iExists id_ref, phase_ref.
+  iSplit.
+  - by iFrame.
+  - by iFrame.
+Qed.
+
+Theorem wp_phase_transit_3 (b: val) (id : val):
+  {{{ is_bounce_unit b id #3 }}}
+    phase_transit b
+  {{{ RET #(); is_bounce_unit b id #1 }}}.
+Proof.
+  iIntros (Φ) "Hb HΦ".
+  unfold is_bounce_unit.
+  iDestruct "Hb" as (id_ref phase_ref) "[% [Hi Hp]]"; subst.
+  unfold phase_transit.
+  wp_pures.
+  wp_load.
+  wp_pures.
+  wp_load.
+  wp_pures.
+  wp_load.
+  wp_pures.
+  wp_store.
+  iApply "HΦ".
+  iModIntro.
+  iExists id_ref, phase_ref.
+  iSplit.
+  - by iFrame.
+  - by iFrame.
+Qed.
 
 
 (*
