@@ -46,8 +46,9 @@ Section bounce_code.
     let: "phase" := !(Snd "bounce_unit") in
     "phase".
 
-  Definition phase_transit (b: val) : expr :=
-    let: "phase_ref" := Snd b in
+  Definition phase_transit: val :=
+    λ: "bounce_unit",
+    let: "phase_ref" := Snd "bounce_unit" in
     if: !"phase_ref" = #1 then "phase_ref" <- #2 else
     if: !"phase_ref" = #2 then "phase_ref" <- #3 else
     if: !"phase_ref" = #3 then "phase_ref" <- #1 else assert #false.
