@@ -59,28 +59,45 @@ Section bounce_code.
 
 End bounce_code.
 
+
 Section bounce_spec.
-Context `{!heapGS Σ, lockG Σ}.
+(* mostly standard boilerplate *)
+Context `{!heapGS Σ}.
+Let N := nroot.@"bounce".
 
 Local Notation iProp := (iProp Σ).
 
-Definition is_bounce_unit (b: val) (id: val) : iProp :=
-  (∃ (id_ref phase_ref: loc) p, ⌜b = (#id_ref, #phase_ref)%V⌝ ∗ id_ref ↦ id ∗
-    phase_ref ↦ p)%I.
+Definition bounce_inv (id_ref phase_ref: loc) : iProp :=
+  (∃ (id phase: val),
+    id_ref ↦ id ∗
+    phase_ref ↦ phase)%I.
+
+Definition is_bounce_unit (b: val): iProp :=
+  (∃ (id_ref phase_ref: loc),
+    ⌜b = (#id_ref, #phase_ref)%V⌝ ∗
+    inv N (bounce_inv id_ref phase_ref))%I.
+
+Instance is_bounce_unit_persistent b: Persistent (is_bounce_unit b).
+Proof. apply _. (* this proof is actually automatic *) Qed.
+
 
 Theorem wp_new_bounce_unit (id: val):
   {{{ True }}}
   new_bounce_unit id
-  {{{b, RET b; is_bounce_unit b id}}}.
+  {{{b, RET b; is_bounce_unit b}}}.
 Proof.
   iIntros (Φ) "_ HΦ".
-  wp_rec.
+  wp_lam.
   wp_alloc id_ref as "Hid".
   wp_alloc phase_ref as "Hphase".
+  wp_let.
   wp_pures.
-  iModIntro.
   iApply "HΦ".
-  iExists _, _, _; by iFrame.
+  iMod (inv_alloc N _ (bounce_inv id_ref phase_ref) with "[Hid Hphase]") as "Hinv".
+  { iNext. iExists _, _; by iFrame. }
+  iModIntro.
+  iExists _, _; iFrame.
+  eauto.
 Qed.
 
 Theorem wp_get_id (b: val) (id: val):
@@ -129,6 +146,26 @@ Proof.
   iPureIntro.
   reflexivity.
 Qed.
+
+Definition demo_phase_transit: val :=
+  λ: <>,
+  let: "b" := new_bounce_unit #0 in
+  let: "p" := get_phase "b" in
+  phase_transit "b";;
+  let: "p'" := get_phase "b" in
+  let: "ok" := "p" + #1 = "p'" in
+  "ok".
+
+Theorem wp_demo_phase_transit:
+  {{{ True }}}
+  demo_phase_transit #()
+  {{{RET #true; True}}}.
+Proof.
+  iIntros (Φ) "_ HΦ".
+  wp_rec.
+  wp_apply wp_new_bounce_unit; first eauto.
+  iIntros (b) "#Hb".
+  wp_pures.
 
 
 (*
