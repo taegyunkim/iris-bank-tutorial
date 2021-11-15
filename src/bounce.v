@@ -28,30 +28,38 @@ Section bounce_code.
     λ: "id",
     let: "id_ref" := ref "id" in
     let: "phase_ref" := ref #1 in
-    ("id_ref", "phase_ref").
+    let: "signed" := ref #false in
+    ("id_ref", "phase_ref", "signed").
 
   Definition get_id : val :=
     λ: "bounce_unit",
-    let: "id" := !(Fst "bounce_unit") in
+    let: "id" := !(Fst(Fst "bounce_unit")) in
     "id".
 
   Definition set_id: val :=
     λ: "bounce_unit" "new_id",
-    let: "id_ref" := Fst "bounce_unit" in
+    let: "id_ref" := Fst(Fst "bounce_unit") in
     "id_ref" <- "new_id";;
     #().
 
   Definition get_phase: val :=
     λ: "bounce_unit",
-    let: "phase" := !(Snd "bounce_unit") in
+    let: "phase" := !(Snd (Fst "bounce_unit")) in
     "phase".
+
 
   Definition phase_transit: val :=
     λ: "bounce_unit",
-    let: "phase_ref" := Snd "bounce_unit" in
+    let: "phase_ref" := Snd (Fst "bounce_unit") in
     if: !"phase_ref" = #1 then "phase_ref" <- #2 else
     if: !"phase_ref" = #2 then "phase_ref" <- #3 else
     if: !"phase_ref" = #3 then "phase_ref" <- #1 else assert #false.
+
+
+  Definition get_signed: val :=
+    λ: "bounce_unit",
+    let: "signed" := !(Snd (Snd "bounce_unit")) in
+    "signed".
 
 End bounce_code.
 
@@ -63,35 +71,38 @@ Let N := nroot.@"bounce".
 
 Local Notation iProp := (iProp Σ).
 
-Definition is_bounce_unit (b: val) (id phase: val): iProp :=
-  (∃ (id_ref phase_ref: loc),
-    ⌜b = (#id_ref, #phase_ref)%V⌝ ∗
+Definition is_bounce_unit (b: val) (id phase signed: val): iProp :=
+  (∃ (id_ref phase_ref signed_ref: loc),
+    ⌜b = (#id_ref, #phase_ref, #signed_ref)%V⌝ ∗
     id_ref ↦ id ∗
-    phase_ref ↦ phase)%I.
+    phase_ref ↦ phase ∗
+    signed_ref ↦ signed
+  )%I.
 
 Theorem wp_new_bounce_unit (id: val):
   {{{ True }}}
   new_bounce_unit id
-  {{{b, RET b; is_bounce_unit b id #1}}}.
+  {{{b, RET b; is_bounce_unit b id #1 #false}}}.
 Proof.
   iIntros (Φ) "_ HΦ".
   wp_lam.
   wp_alloc id_ref as "Hid".
   wp_alloc phase_ref as "Hphase".
+  wp_alloc signed_ref as "Hsigned".
   wp_let.
   wp_pures.
   iApply "HΦ".
   iModIntro.
-  iExists _, _; by iFrame.
+  iExists _, _, _; by iFrame.
 Qed.
 
-Theorem wp_get_id (b: val) (id phase: val):
-  {{{ is_bounce_unit b id phase}}}
+Theorem wp_get_id (b: val) (id phase signed: val):
+  {{{ is_bounce_unit b id phase signed}}}
     get_id b
   {{{ RET id; True }}}.
 Proof.
   iIntros (Φ) "HInv HΦ".
-  iDestruct "HInv" as (id_ref phase_ref) "[% [Hid Hphase]]"; subst.
+  iDestruct "HInv" as (id_ref phase_ref signed_ref) "[% [Hid [Hphase Hsigned]]]"; subst.
   wp_lam.
   wp_pures.
   wp_load.
@@ -101,30 +112,30 @@ Proof.
   auto.
 Qed.
 
-Theorem wp_set_id (b: val) (id phase id' :val):
-  {{{ is_bounce_unit b id phase }}}
+Theorem wp_set_id (b: val) (id phase signed id' :val):
+  {{{ is_bounce_unit b id phase signed}}}
     set_id b id'
-  {{{RET #(); is_bounce_unit b id' phase}}}.
+  {{{RET #(); is_bounce_unit b id' phase signed}}}.
   iIntros (Φ) "Hb HΦ".
-  iDestruct "Hb" as (id_ref phase_ref) "[% [Hi Hp]]"; subst.
+  iDestruct "Hb" as (id_ref phase_ref signed_ref) "[% [Hi [Hp Hs]]]"; subst.
   wp_rec.
   wp_pures.
   wp_store.
   iApply "HΦ".
   iModIntro.
-  iExists id_ref, phase_ref.
+  iExists id_ref, phase_ref, signed_ref.
   iSplit.
   - by iFrame.
   - by iFrame.
 Qed.
 
-Theorem wp_get_phase (b: val) (id phase: val):
-  {{{ is_bounce_unit b id phase}}}
+Theorem wp_get_phase (b: val) (id phase signed: val):
+  {{{ is_bounce_unit b id phase signed}}}
     get_phase b
   {{{RET phase; True}}}.
 Proof.
   iIntros (Φ) "Hb HΦ".
-  iDestruct "Hb" as (id_ref phase_ref) "[% [Hi Hp]]"; subst.
+  iDestruct "Hb" as (id_ref phase_ref signed_ref) "[% [Hi [Hp Hs]]]"; subst.
   wp_rec.
   wp_pures.
   wp_load.
@@ -135,14 +146,14 @@ Proof.
   reflexivity.
 Qed.
 
-Theorem wp_phase_transit_1 (b: val) (id : val):
-  {{{ is_bounce_unit b id #1 }}}
+Theorem wp_phase_transit_1 (b: val) (id signed: val):
+  {{{ is_bounce_unit b id #1 signed }}}
     phase_transit b
-  {{{ RET #(); is_bounce_unit b id #2 }}}.
+  {{{ RET #(); is_bounce_unit b id #2 signed}}}.
 Proof.
   iIntros (Φ) "Hb HΦ".
   unfold is_bounce_unit.
-  iDestruct "Hb" as (id_ref phase_ref) "[% [Hi Hp]]"; subst.
+  iDestruct "Hb" as (id_ref phase_ref signed_ref) "[% [Hi [Hp Hs]]]"; subst.
   unfold phase_transit.
   wp_pures.
   wp_load.
@@ -150,21 +161,47 @@ Proof.
   wp_store.
   iApply "HΦ".
   iModIntro.
-  iExists id_ref, phase_ref.
+  iExists id_ref, phase_ref, signed_ref.
   iSplit.
   - by iFrame.
   - by iFrame.
 Qed.
 
-Theorem wp_phase_transit_2 (b: val) (id : val):
-  {{{ is_bounce_unit b id #2 }}}
+Theorem wp_phase_transit_2 (b: val) (id signed: val):
+{{{ is_bounce_unit b id #2 signed }}}
+  phase_transit b
+{{{ RET #(); is_bounce_unit b id #3 signed}}}.
+Proof.
+iIntros (Φ) "Hb HΦ".
+unfold is_bounce_unit.
+iDestruct "Hb" as (id_ref phase_ref signed_ref) "[% [Hi [Hp Hs]]]"; subst.
+unfold phase_transit.
+wp_pures.
+wp_load.
+wp_pures.
+wp_load.
+wp_pures.
+wp_store.
+iApply "HΦ".
+iModIntro.
+iExists id_ref, phase_ref, signed_ref.
+iSplit.
+- by iFrame.
+- by iFrame.
+Qed.
+
+
+Theorem wp_phase_transit_3 (b: val) (id signed : val):
+  {{{ is_bounce_unit b id #3 signed }}}
     phase_transit b
-  {{{ RET #(); is_bounce_unit b id #3 }}}.
+  {{{ RET #(); is_bounce_unit b id #1 signed }}}.
 Proof.
   iIntros (Φ) "Hb HΦ".
   unfold is_bounce_unit.
-  iDestruct "Hb" as (id_ref phase_ref) "[% [Hi Hp]]"; subst.
+  iDestruct "Hb" as (id_ref phase_ref signed_ref) "[% [Hi [Hp Hs]]]"; subst.
   unfold phase_transit.
+  wp_pures.
+  wp_load.
   wp_pures.
   wp_load.
   wp_pures.
@@ -173,37 +210,11 @@ Proof.
   wp_store.
   iApply "HΦ".
   iModIntro.
-  iExists id_ref, phase_ref.
+  iExists id_ref, phase_ref, signed_ref.
   iSplit.
   - by iFrame.
   - by iFrame.
 Qed.
-
-Theorem wp_phase_transit_3 (b: val) (id : val):
-  {{{ is_bounce_unit b id #3 }}}
-    phase_transit b
-  {{{ RET #(); is_bounce_unit b id #1 }}}.
-Proof.
-  iIntros (Φ) "Hb HΦ".
-  unfold is_bounce_unit.
-  iDestruct "Hb" as (id_ref phase_ref) "[% [Hi Hp]]"; subst.
-  unfold phase_transit.
-  wp_pures.
-  wp_load.
-  wp_pures.
-  wp_load.
-  wp_pures.
-  wp_load.
-  wp_pures.
-  wp_store.
-  iApply "HΦ".
-  iModIntro.
-  iExists id_ref, phase_ref.
-  iSplit.
-  - by iFrame.
-  - by iFrame.
-Qed.
-
 
 (*
 Theorem wp_new_bounce_unit (id: val):
